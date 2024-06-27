@@ -1,17 +1,27 @@
 // Inspired from https://sparql.uniprot.org/sparql.js
-// Note that we add `&ac=1` to all the queries for the prefixes to exclude these queries from stats
-// Code for UniProt SPARQL examples https://sparql.uniprot.org/.well-known/sparql-examples
+// Note that we add `&ac=1` to all the queries to exclude these queries from stats
 
-class SparqlEditor {
+/** Class to create a SPARQL editor using YASGUI
+ * with autocompletion for classes and properties based on VoID description stored in the endpoint
+ * and prefixes defined using SHACL in the endpoint
+ */
+export class SparqlEditor {
 
-	constructor(endpointUrl, yasqeElem, yasrElem, addPrefixesElem = null) {
+	/**
+	 * Create a SPARQL editor for a given endpoint
+	 * @param {string} endpointUrl - URL of the SPARQL endpoint
+	 * @param {HTMLElement} editorElem - Element where the SPARQL editor will be created
+	 * @param {HTMLElement} resultsElem - Element where the SPARQL results will be displayed
+	 * @param {HTMLElement} addPrefixesElem - Element where the button to add prefixes to the query will be created
+	 */
+	constructor(endpointUrl, editorElem, resultsElem, addPrefixesElem = null) {
 		this.endpointUrl = endpointUrl;
 		Yasqe.forkAutocompleter("class", this.voidClassCompleter);
 		Yasqe.forkAutocompleter("property", this.voidPropertyCompleter);
 		// Remove the original autocompleters for class and property
 		Yasqe.defaults.autocompleters = Yasqe.defaults.autocompleters.filter(item => !["class", "property"].includes(item))
 
-		this.yasqe = new Yasqe(yasqeElem, {
+		this.yasqe = new Yasqe(editorElem, {
 			requestConfig: {
 				endpoint: endpointUrl,
 				method: "GET",
@@ -20,7 +30,7 @@ class SparqlEditor {
 			copyEndpointOnNewTab: false,
 			resizeable: true,
 		});
-		this.yasr = new Yasr(yasrElem)
+		this.yasr = new Yasr(resultsElem)
 
 		// this.yasqe.on("query", (y) => {
 		// 	this.yasr.config.prefixes = y.getPrefixesFromQuery();
@@ -33,40 +43,35 @@ class SparqlEditor {
 			});
 		});
 		this.prefixes = new Map([
+			['rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
+			['rdfs', 'http://www.w3.org/2000/01/rdf-schema#'],
+			['xsd', 'http://www.w3.org/2001/XMLSchema#'],
+			['owl', 'http://www.w3.org/2002/07/owl#'],
+			['skos', 'http://www.w3.org/2004/02/skos/core#'],
 			['up', 'http://purl.uniprot.org/core/'],
 			['keywords', 'http://purl.uniprot.org/keywords/'],
 			['uniprotkb', 'http://purl.uniprot.org/uniprot/'],
 			['taxon', 'http://purl.uniprot.org/taxonomy/'],
 			['ec', 'http://purl.uniprot.org/enzyme/'],
-			['rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
-			['rdfs', 'http://www.w3.org/2000/01/rdf-schema#'],
-			['skos', 'http://www.w3.org/2004/02/skos/core#'],
-			['owl', 'http://www.w3.org/2002/07/owl#'],
 			['bibo', 'http://purl.org/ontology/bibo/'],
 			['dc', 'http://purl.org/dc/terms/'],
-			['xsd', 'http://www.w3.org/2001/XMLSchema#'],
 			['faldo', 'http://biohackathon.org/resource/faldo#']
 		]);
-		fetch(`${this.endpointUrl}?format=json&ac=1&query=PREFIX sh:<http://www.w3.org/ns/shacl%23> SELECT ?prefix ?namespace WHERE { [] sh:namespace ?namespace ; sh:prefix ?prefix} ORDER BY ?prefix`)
+		fetch(`${this.endpointUrl}?format=json&ac=1&query=PREFIX sh: <http://www.w3.org/ns/shacl%23> SELECT ?prefix ?namespace WHERE { [] sh:namespace ?namespace ; sh:prefix ?prefix} ORDER BY ?prefix`)
 			.then(response => response.json())
 			.then(json => json.results.bindings.forEach(b => {
 				this.prefixes.set(b.prefix.value, b.namespace.value);
-				let pref = {};
-				pref[b.prefix.value] = b.namespace.value;
 			}))
 			.then((x) => {
 				this.yasr.config.prefixes = Object.fromEntries(this.prefixes);
-
-				// Button to add prefixes to the query
 				if (addPrefixesElem) {
+					// Button to add prefixes to the query
 					addPrefixesElem.addEventListener('click', () => {
-						const sortedKeys = [...this.prefixes.keys()].sort();
-						for (let key of sortedKeys) {
-							const value = this.prefixes.get(key);
-							let pref = {};
-							pref[key] = value;
-							this.yasqe.addPrefixes(pref);
-						};
+						const sortedPrefixes = {};
+						for (let key of [...this.prefixes.keys()].sort()) {
+							sortedPrefixes[key] = this.prefixes.get(key);
+						}
+						this.yasqe.addPrefixes(sortedPrefixes);
 						this.yasqe.collapsePrefixes(true);
 					});
 				}
@@ -77,40 +82,36 @@ class SparqlEditor {
 	voidClassCompleter = {
 		name: "voidClass",
 		bulk: true,
-		get: function(yasqe, token) {
-				// console.log("YASSy", yasqe);
+		get: (yasqe, token) => {
 				const sparqlQuery = "PREFIX void: <http://rdfs.org/ns/void#> SELECT DISTINCT ?class { [] void:class ?class } ORDER BY ?class ";
-				const url = this.endpointUrl + '?format=csv&ac=1&query=' + encodeURIComponent(sparqlQuery);
-				// console.log('fetch from', url);
-				return fetch(url)
+				return fetch(this.endpointUrl + '?format=csv&ac=1&query=' + encodeURIComponent(sparqlQuery))
 						.then((response) => response.text())
 						.then(function(text) {
 								var data = text.split('\n').filter(item => item !== "");
 								data.shift();
 								return data;
 						})
-						.catch((error) => { console.error('Error:', error) });
+						.catch((error) => console.error('Error retrieving autocomplete for classes:', error));
 		},
 	}
 	voidPropertyCompleter = {
 		name: "voidProperty",
 		bulk: true,
-		get: function(yasqe, token) {
+		get: (yasqe, token) => {
 				const sparqlQuery = "PREFIX void: <http://rdfs.org/ns/void#> SELECT DISTINCT ?property { [] void:linkPredicate|void:property ?property } ORDER BY ?property";
-				const url = this.endpointUrl + '?format=csv&ac=1&query=' + encodeURIComponent(sparqlQuery);
-				return fetch(url)
+				return fetch(this.endpointUrl + '?format=csv&ac=1&query=' + encodeURIComponent(sparqlQuery))
 						.then((response) => response.text())
 						.then(function(text) {
 								var data = text.split('\n').filter(item => item !== "");
 								data.shift();
 								return data;
 						})
-						.catch((error) => { console.error('Error:', error) });
+						.catch((error) => console.error('Error retrieving autocomplete for properties:', error));
 		},
 	}
 
 	addCommonPrefixesToQuery() {
-		// Not used atm, it is for example queries
+		// Not used atm, it is to add prefixes for example queries
 		const val = this.yasqe.getValue();
 		const sortedKeys = [...this.prefixes.keys()].sort();
 		for (let key of sortedKeys) {
@@ -125,12 +126,8 @@ class SparqlEditor {
 	}
 }
 
-
-// https://github.com/RDFLib/prez-ui/blob/781622441d0c2ecd60200088c0352e82c547cc61/src/views/SparqlView.vue#L102
-
 // NOTE: we could also use the Yasgui class directly
 // const yasgui = new Yasgui(document.getElementById("yasgui"), {
 //     requestConfig: { endpoint: endpointUrl },
 //     copyEndpointOnNewTab: false,
 // });
-
