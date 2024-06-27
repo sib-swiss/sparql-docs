@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>YASGUI example</title>
+        <meta name="description" content="YASGUI example" />
+        <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/f/f3/Rdf_logo.svg">
+
+        <link href="https://unpkg.com/@zazuko/yasgui@4/build/yasgui.min.css" rel="stylesheet" type="text/css" />
+        <script src="https://unpkg.com/@zazuko/yasgui@4/build/yasgui.min.js"></script>
+        <script src="/sparql-editor.js"></script>
+    </head>
+
+    <body>
+        <!-- <div id="yasgui"></div> -->
+        <button id="addPrefix">Add common prefixes</button>
+        <div id="yasqe"></div>
+        <div id="yasr"></div>
+        <script>
+            const se = new SparqlEditor(
+                "https://sparql.uniprot.org/sparql/",
+                document.getElementById("yasqe"),
+                document.getElementById("yasr"),
+                document.getElementById('addPrefix')
+            );
+        </script>
+        <style>
+            button.yasqe_share {
+                display: none !important;
+            }
+            .yasgui .controlbar {
+                display: none !important;
+            }
+            .yasr .rowNumber {
+                text-align: left;
+            }
+            .yasr .dataTable {
+                font-size: 0.9em;
+            }
+        </style>
+    </body>
+</html>
