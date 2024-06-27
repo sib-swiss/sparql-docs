@@ -27,19 +27,20 @@ export class SparqlEditor {
 				method: "GET",
 			},
 			showQueryButton: true,
-			copyEndpointOnNewTab: false,
+			copyEndpointOnNewTab: true,
 			resizeable: true,
 		});
 		this.yasr = new Yasr(resultsElem)
 
-		// this.yasqe.on("query", (y) => {
-		// 	this.yasr.config.prefixes = y.getPrefixesFromQuery();
-		// });
+		this.yasqe.on("query", (y) => {
+			// Results will also use additional prefixes from the query
+			this.yasr.config.prefixes = {...this.yasr.config.prefixes, ...y.getPrefixesFromQuery()};
+		});
 		this.yasqe.on("queryResponse", (y, response, duration) => {
 			this.yasr.setResponse({
 				data: response.text,
 				status: response.statusCode,
-				executionTime: duration
+				executionTime: duration,
 			});
 		});
 		this.prefixes = new Map([
@@ -55,7 +56,7 @@ export class SparqlEditor {
 			['ec', 'http://purl.uniprot.org/enzyme/'],
 			['bibo', 'http://purl.org/ontology/bibo/'],
 			['dc', 'http://purl.org/dc/terms/'],
-			['faldo', 'http://biohackathon.org/resource/faldo#']
+			['faldo', 'http://biohackathon.org/resource/faldo#'],
 		]);
 		fetch(`${this.endpointUrl}?format=json&ac=1&query=PREFIX sh: <http://www.w3.org/ns/shacl%23> SELECT ?prefix ?namespace WHERE { [] sh:namespace ?namespace ; sh:prefix ?prefix} ORDER BY ?prefix`)
 			.then(response => response.json())
