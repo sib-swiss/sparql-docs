@@ -12,17 +12,21 @@ export class SparqlEditor {
 	 * Create a SPARQL editor for a given endpoint
 	 * @param {string} endpointUrl - URL of the SPARQL endpoint
 	 * @param {HTMLElement} editorEl - Element where the SPARQL editor will be created
-	 * @param {HTMLElement} resultsEl - Element where the SPARQL results will be displayed
 	 * @param {HTMLElement} exampleQueriesEl - Element where the SPARQL query examples will be displayed
 	 * @param {number} examplesOnMainPage - Number of examples to display on the main page
 	 */
-	constructor(endpointUrl, editorEl, resultsEl, exampleQueriesEl = null, examplesOnMainPage = 13) {
+	constructor(endpointUrl, editorEl, exampleQueriesEl = null, examplesOnMainPage = 13) {
 		this.endpointUrl = endpointUrl;
 		this.examplesOnMainPage = examplesOnMainPage;
 		Yasqe.forkAutocompleter("class", this.voidClassCompleter);
 		Yasqe.forkAutocompleter("property", this.voidPropertyCompleter);
 		// Remove the original autocompleters for class and property
 		Yasqe.defaults.autocompleters = Yasqe.defaults.autocompleters.filter(item => !["class", "property"].includes(item))
+		Yasgui.defaults.requestConfig = {
+			endpoint: this.endpointUrl,
+			method: "GET",
+		}
+		// console.log(Yasgui)
 
 		// Create button to add prefixes to the query
 		const btnDivEl = document.createElement("div");
@@ -33,28 +37,29 @@ export class SparqlEditor {
 		editorEl.appendChild(btnDivEl);
 
 		// Create SPARQL editor and results using YASGUI
-		this.yasqe = new Yasqe(editorEl, {
-			requestConfig: {
-				endpoint: endpointUrl,
-				method: "GET",
-			},
-			showQueryButton: true,
-			copyEndpointOnNewTab: true,
-			resizeable: true,
+		this.yasgui = new Yasgui(editorEl, {
+				showQueryButton: true,
+				copyEndpointOnNewTab: true,
+				resizeable: true,
 		});
-		this.yasr = new Yasr(resultsEl)
+		console.log(this.yasgui)
 
-		this.yasqe.on("query", (y) => {
+		this.yasgui.getTab().yasqe.on("query", (y) => {
 			// Results will also use additional prefixes defined in the query
-			this.yasr.config.prefixes = {...this.yasr.config.prefixes, ...y.getPrefixesFromQuery()};
+			this.yasgui.getTab().yasr.config.prefixes = {...this.yasgui.getTab().yasr.config.prefixes, ...y.getPrefixesFromQuery()};
+
+			// TODO: add auto limit if not provided, and if it is a SELECT or CONSTRUCT query
+			// But the on query event is fired after the query is sent. So it is completely useless as it is...
+			// We just need to move yasqe.emit("query") up a few lines here: https://github.com/zazuko/Yasgui/blob/main/packages/yasqe/src/sparql.ts#L73
+			// y.setValue(this.ensureLimit(y.getValue()))
 		});
-		this.yasqe.on("queryResponse", (y, response, duration) => {
-			this.yasr.setResponse({
-				data: response.text,
-				status: response.statusCode,
-				executionTime: duration,
-			});
-		});
+
+		// this.yasgui.getTab().yasqe.on("change", (y) => {
+		// 	console.log(this.yasgui.getTab());
+		// 	console.log(y, y.getValue())
+		// 	y.setValue(this.ensureLimit(y.getValue()))
+		// });
+
 		// Get prefixes from endpoint
 		this.prefixes = new Map([
 			['rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'],
@@ -77,16 +82,19 @@ export class SparqlEditor {
 				this.prefixes.set(b.prefix.value, b.namespace.value);
 			}))
 			.then((x) => {
-				this.yasr.config.prefixes = Object.fromEntries(this.prefixes);
+				this.yasgui.config.yasr.prefixes = Object.fromEntries(this.prefixes);
+				this.yasgui.getTab().yasr.config.prefixes = Object.fromEntries(this.prefixes);
+				// Yasgui.Yasr.defaults.prefixes = Object.fromEntries(this.prefixes);
 				console.log(this.prefixes);
+
 				// Button to add prefixes to the query
 				addPrefBtnEl.addEventListener('click', () => {
 					const sortedPrefixes = {};
 					for (let key of [...this.prefixes.keys()].sort()) {
 						sortedPrefixes[key] = this.prefixes.get(key);
 					}
-					this.yasqe.addPrefixes(sortedPrefixes);
-					this.yasqe.collapsePrefixes(true);
+					this.yasgui.getTab().yasqe.addPrefixes(sortedPrefixes);
+					this.yasgui.getTab().yasqe.collapsePrefixes(true);
 				});
 			});
 
@@ -108,7 +116,7 @@ export class SparqlEditor {
 		// NOTE: Yasqe already automatically load query param in the editor
 		if (this.urlParams.query) {
 			this.addCommonPrefixesToQuery();
-			this.yasqe.query();
+			this.yasgui.getTab().yasqe.query();
 		}
 	}
 
@@ -145,8 +153,8 @@ export class SparqlEditor {
 	}
 
 	addCommonPrefixesToQuery() {
-		// Not used atm, it is to add prefixes for example queries
-		const val = this.yasqe.getValue();
+		// Add prefixes to example queries
+		const val = this.yasgui.getTab().yasqe.getValue();
 		const sortedKeys = [...this.prefixes.keys()].sort();
 		for (let key of sortedKeys) {
 			const value = this.prefixes.get(key);
@@ -154,9 +162,30 @@ export class SparqlEditor {
 			pref[key] = value;
 			var prefix = 'PREFIX ' + key + ' ?: ?<' + value;
 			if (!new RegExp(prefix, 'g').test(val) && new RegExp('[(| |\u00a0|/|^]' + key + ':', 'g').test(val)) {
-				this.yasqe.addPrefixes(pref);
+				this.yasgui.getTab().yasqe.addPrefixes(pref);
 			}
 		};
+	}
+
+	addTab(query, index) {
+		this.yasgui.addTab(
+			true,
+			{
+				...Yasgui.Tab.getDefaults(),
+				name: `Query ${index+1}`,
+				yasqe: {value: query}
+			}
+		);
+		this.addCommonPrefixesToQuery();
+	}
+
+	ensureLimit(query) {
+    const limitPattern = /LIMIT\s+\d+\s*$/i;
+    const trimmedQuery = query.trim();
+    if (!limitPattern.test(trimmedQuery)) {
+        return trimmedQuery + " LIMIT 1000";
+    }
+    return trimmedQuery;
 	}
 
 	addExampleQueries(exampleQueriesEl) {
@@ -215,8 +244,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 					button.style.marginLeft = "0.5em";
 					button.className = "sparqlExampleButton";
 					button.addEventListener("click", () => {
-						this.yasqe.setValue(example.query);
-						this.addCommonPrefixesToQuery();
+						this.addTab(example.query, index);
 						exQueryDialog.close();
 					});
 					exQueryP.appendChild(button);
@@ -228,8 +256,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 						const cloneExQueryDiv = exQueryDiv.cloneNode(true);
 						// Cloning does not include click event so we need to redo it :(
 						cloneExQueryDiv.lastChild.lastChild.addEventListener("click", () => {
-							this.yasqe.setValue(example.query);
-							this.addCommonPrefixesToQuery();
+							this.addTab(example.query, index);
 						});
 						exampleQueriesEl.appendChild(cloneExQueryDiv)
 					};
