@@ -133,8 +133,7 @@ export function hljsDefineSparql(hljs) {
     relevance: 0,
   };
 
-  // We need to redefine a class for expanded URIs, because in turtle they use the same class
-  // for a string and a URI! Do the OG devs know RDF?
+  // We need to redefine a class for expanded URIs, because in turtle they use the same class for a string and a URI!
   var EXPANDED_IRI = {
     className: 'expanded-iri',
     begin: /<[^>]*>/,

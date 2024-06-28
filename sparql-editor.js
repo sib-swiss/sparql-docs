@@ -13,11 +13,10 @@ export class SparqlEditor {
 	 * @param {string} endpointUrl - URL of the SPARQL endpoint
 	 * @param {HTMLElement} editorEl - Element where the SPARQL editor will be created
 	 * @param {HTMLElement} resultsEl - Element where the SPARQL results will be displayed
-	 * @param {HTMLElement} addPrefixesEl - Element where the button to add prefixes to the query will be created
 	 * @param {HTMLElement} exampleQueriesEl - Element where the SPARQL query examples will be displayed
 	 * @param {number} examplesOnMainPage - Number of examples to display on the main page
 	 */
-	constructor(endpointUrl, editorEl, resultsEl, addPrefixesEl = null, exampleQueriesEl = null, examplesOnMainPage = 13) {
+	constructor(endpointUrl, editorEl, resultsEl, exampleQueriesEl = null, examplesOnMainPage = 13) {
 		this.endpointUrl = endpointUrl;
 		this.examplesOnMainPage = examplesOnMainPage;
 		Yasqe.forkAutocompleter("class", this.voidClassCompleter);
@@ -25,6 +24,15 @@ export class SparqlEditor {
 		// Remove the original autocompleters for class and property
 		Yasqe.defaults.autocompleters = Yasqe.defaults.autocompleters.filter(item => !["class", "property"].includes(item))
 
+		// Create button to add prefixes to the query
+		const btnDivEl = document.createElement("div");
+		const addPrefBtnEl = document.createElement("button");
+		addPrefBtnEl.style.marginBottom = "0.3em";
+		addPrefBtnEl.textContent = "Add common prefixes";
+		btnDivEl.appendChild(addPrefBtnEl);
+		editorEl.appendChild(btnDivEl);
+
+		// Create SPARQL editor and results using YASGUI
 		this.yasqe = new Yasqe(editorEl, {
 			requestConfig: {
 				endpoint: endpointUrl,
@@ -37,7 +45,7 @@ export class SparqlEditor {
 		this.yasr = new Yasr(resultsEl)
 
 		this.yasqe.on("query", (y) => {
-			// Results will also use additional prefixes from the query
+			// Results will also use additional prefixes defined in the query
 			this.yasr.config.prefixes = {...this.yasr.config.prefixes, ...y.getPrefixesFromQuery()};
 		});
 		this.yasqe.on("queryResponse", (y, response, duration) => {
@@ -71,22 +79,37 @@ export class SparqlEditor {
 			.then((x) => {
 				this.yasr.config.prefixes = Object.fromEntries(this.prefixes);
 				console.log(this.prefixes);
-				if (addPrefixesEl) {
-					// Button to add prefixes to the query
-					addPrefixesEl.addEventListener('click', () => {
-						const sortedPrefixes = {};
-						for (let key of [...this.prefixes.keys()].sort()) {
-							sortedPrefixes[key] = this.prefixes.get(key);
-						}
-						this.yasqe.addPrefixes(sortedPrefixes);
-						this.yasqe.collapsePrefixes(true);
-					});
-				}
+				// Button to add prefixes to the query
+				addPrefBtnEl.addEventListener('click', () => {
+					const sortedPrefixes = {};
+					for (let key of [...this.prefixes.keys()].sort()) {
+						sortedPrefixes[key] = this.prefixes.get(key);
+					}
+					this.yasqe.addPrefixes(sortedPrefixes);
+					this.yasqe.collapsePrefixes(true);
+				});
 			});
 
 		// Add SPARQL query examples
 		this.exampleQueries = [];
 		if (exampleQueriesEl) this.addExampleQueries(exampleQueriesEl);
+
+		// Parse query params from URL and auto run if query provided
+		this.urlParams = {};
+		if (window.location.search) {
+			const regex = /[?&]([^=&]+)=([^&]*)/g;
+			let match;
+			while (match = regex.exec(window.location.search)) {
+				const key = decodeURIComponent(match[1]);
+				const value = decodeURIComponent(match[2]);
+				this.urlParams[key] = value;
+			}
+		}
+		// NOTE: Yasqe already automatically load query param in the editor
+		if (this.urlParams.query) {
+			this.addCommonPrefixesToQuery();
+			this.yasqe.query();
+		}
 	}
 
 	// https://github.com/zazuko/Yasgui/blob/main/packages/yasqe/src/autocompleters/classes.ts#L8
@@ -136,7 +159,7 @@ export class SparqlEditor {
 		};
 	}
 
-	addExampleQueries(exampleQueriesElem) {
+	addExampleQueries(exampleQueriesEl) {
 		const getQueryExamples = `PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 SELECT DISTINCT ?comment ?query WHERE {
@@ -161,7 +184,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 				exQueryTitle.style.fontWeight = "200";
 				exQueryTitle.textContent = "Examples";
 				exQueryTitleDiv.appendChild(exQueryTitle);
-				exampleQueriesElem.appendChild(exQueryTitleDiv);
+				exampleQueriesEl.appendChild(exQueryTitleDiv);
 
 				// Create dialog for examples
 				const exQueryDialog = document.createElement("dialog");
@@ -177,7 +200,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 				exDialogCloseBtn.style.top = "2em";
 				exDialogCloseBtn.style.right = "2em";
 				exQueryDialog.appendChild(exDialogCloseBtn);
-				exampleQueriesElem.appendChild(exQueryDialog);
+				exampleQueriesEl.appendChild(exQueryDialog);
 
 				// Add examples to the main page and dialog
 				this.exampleQueries.forEach((example, index) => {
@@ -208,7 +231,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 							this.yasqe.setValue(example.query);
 							this.addCommonPrefixesToQuery();
 						});
-						exampleQueriesElem.appendChild(cloneExQueryDiv)
+						exampleQueriesEl.appendChild(cloneExQueryDiv)
 					};
 
 					// Add query to dialog using pre/code (super fast)
@@ -244,7 +267,7 @@ SELECT DISTINCT ?comment ?query WHERE {
 				// Add button to open dialog
 				const openExDialogBtn = document.createElement("button");
 				openExDialogBtn.textContent = "See all examples";
-				exampleQueriesElem.appendChild(openExDialogBtn);
+				exampleQueriesEl.appendChild(openExDialogBtn);
 
 				openExDialogBtn.addEventListener("click", () => {
 					exQueryDialog.showModal();
@@ -258,11 +281,6 @@ SELECT DISTINCT ?comment ?query WHERE {
 	}
 }
 
+// TODO: check how we can edit the table results to add a button to run a DESCRIBE query on each cell
 // https://github.com/zazuko/Yasgui/blob/main/packages/yasr/src/plugins/table/index.ts#L76
 // https://datatables.net/extensions/buttons/
-
-// NOTE: we could also use the Yasgui class directly
-// const yasgui = new Yasgui(document.getElementById("yasgui"), {
-//     requestConfig: { endpoint: endpointUrl },
-//     copyEndpointOnNewTab: false,
-// });

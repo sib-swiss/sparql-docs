@@ -16,14 +16,13 @@
 
     <body>
         <div style="display: flex; flex-direction: row;">
+            <!-- Editor and results on the left -->
             <div style="display: flex; flex-direction: column; flex: 0 0 70%; margin-right: 1em;">
-                <div>
-                    <button id="add-prefixes" style="margin-bottom: 0.3em;">Add common prefixes</button>
-                </div>
                 <div id="sparql-editor"></div>
                 <div id="sparql-results"></div>
             </div>
 
+            <!-- Examples on the right -->
             <div id="sparql-examples" style="flex: 1; border-left: 1px solid #ccc; padding-left: 1em;"></div>
         </div>
 
@@ -41,7 +40,6 @@
                 // "https://beta.sparql.swisslipids.org/sparql/",
                 document.getElementById("sparql-editor"),
                 document.getElementById("sparql-results"),
-                document.getElementById("add-prefixes"),
                 document.getElementById("sparql-examples"),
             );
         </script>

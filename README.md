@@ -74,17 +74,19 @@ Add the YASGUI editor and result window in your HTML:
 
 ```html
 <body>
-    <button id="add-prefixes" style="margin-bottom: 0.3em;">Add common prefixes</button>
     <div id="sparql-editor"></div>
     <div id="sparql-results"></div>
+    <div id="sparql-examples"></div>
+    
     <script>
         const se = new SparqlEditor(
             "https://sparql.uniprot.org/sparql/",
             document.getElementById("sparql-editor"),
             document.getElementById("sparql-results"),
-            document.getElementById("add-prefixes"),
+            document.getElementById("sparql-examples"),
         );
     </script>
+
     <style>
         button.yasqe_share {
             display: none !important;
