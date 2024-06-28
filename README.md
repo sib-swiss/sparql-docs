@@ -4,24 +4,41 @@ Instructions on how to document SPARQL endpoints published at the Swiss Institut
 
 ## 📚️ Publish SPARQL queries examples
 
-1. Add each query to your triplestore folder in the `examples` folder at https://github.com/sib-swiss/sparql-examples
-2. Generate the RDF file containing all SPARQL examples and prefixes/namespaces described using SHACL, and upload this RDF to your triplestore.
-
-It is recommended to upload the RDF to a named graph composed of the SPARQL endpoint URL postfixed with `/.well-known/sparql-examples`
+1. Add each query to your triplestore folder in the `examples` folder at https://github.com/sib-swiss/sparql-examples (see the repository readme for more details on the format and scripts to use)
+2. Generate the RDF file containing all SPARQL examples and prefixes/namespaces described using SHACL, and upload this RDF to your triplestore. It is recommended to upload the RDF to a named graph composed of the SPARQL endpoint URL postfixed with `/.well-known/sparql-examples`
 
 ## 📈 Publish the VoID description
 
-1. Generate the VoID description using the void-generator: https://github.com/JervenBolleman/void-generator. If you are using Virtuoso it is recommended to run it on the server using the JDBC connector (much faster)
+1. Generate useful statistics for your endpoint (VoID description) using the void-generator: https://github.com/JervenBolleman/void-generator. If you are using Virtuoso it is recommended to run it on the server using the JDBC connector (much faster)
 
-2. Upload the generated RDF to your endpoint.
-
-It is recommended to upload the RDF to a named graph composed of the SPARQL endpoint URL postfixed with `/.well-known/void`
+2. Upload the generated RDF to your endpoint. It is recommended to upload the RDF to a named graph composed of the SPARQL endpoint URL postfixed with `/.well-known/void`
 
 ## 🦉 Publish the ontology with Widoco
 
-1. Use `widoco` supported predicates such as `widoco:introduction` and `vann:example`
+1.  Make sure the following sections are covered:
 
-2. Publish the ontology to your triplestore. It is recommended to upload the ontology to a named graph (the ontology URL).
+   - Version, Authors, Contributors (e.g. emails), License, Contact Email.
+
+   - Abstract
+
+   - Introduction. Describe the ontology in a few sentences
+
+   - Overview. Put Diagram of classes / properties etc
+
+   - Section 3. Description
+
+     1. Diagram (image which can be provided as URL in the ontology)
+     2. Examples of Usage (links to tutorials, if any), links to example queries
+
+   - Section 4. “Main WIDOCO business” - schema ontology classes + properties. Include examples wherever relevant using *skos:example* in the .owl file that will be parsed automatically
+
+   - References. PubMed IDs / DOIs for the paper describing the ontology / RDF data (if any)
+
+   - Acknowledgements
+
+     > A full overview of metadata terms supported by WIDOCO is available [here](https://github.com/dgarijo/Widoco/blob/master/doc/metadataGuide/guide.md#metadata-usage-in-widoco-1), while an overview of best practices using WIDOCO can be found [here](https://dgarijo.github.io/Widoco/doc/bestPractices/index-en.html).
+
+2. Publish the ontology RDF to your triplestore. It is recommended to upload the ontology to a named graph (the ontology URL).
 
 3. Generate and publish the website HTML:
 

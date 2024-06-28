@@ -9,22 +9,40 @@
 
         <link href="https://unpkg.com/@zazuko/yasgui@4/build/yasgui.min.css" rel="stylesheet" type="text/css" />
         <script src="https://unpkg.com/@zazuko/yasgui@4/build/yasgui.min.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/default.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
         <!-- <script src="/sparql-editor.js"></script> -->
     </head>
 
     <body>
-        <button id="add-prefixes" style="margin-bottom: 0.3em;">Add common prefixes</button>
-        <div id="sparql-editor"></div>
-        <div id="sparql-results"></div>
+        <div style="display: flex; flex-direction: row;">
+            <div style="display: flex; flex-direction: column; flex: 0 0 70%; margin-right: 1em;">
+                <div>
+                    <button id="add-prefixes" style="margin-bottom: 0.3em;">Add common prefixes</button>
+                </div>
+                <div id="sparql-editor"></div>
+                <div id="sparql-results"></div>
+            </div>
+
+            <div id="sparql-examples" style="flex: 1; border-left: 1px solid #ccc; padding-left: 1em;"></div>
+        </div>
 
         <script type="module">
             import { SparqlEditor } from "/sparql-editor.js";
+            import { hljsDefineTurtle, hljsDefineSparql } from "/assets/highlight-sparql.js";
+
+            hljs.registerLanguage('ttl', hljsDefineTurtle);
+            hljs.registerLanguage('sparql', hljsDefineSparql);
 
             const se = new SparqlEditor(
                 "https://sparql.uniprot.org/sparql/",
+                // "https://www.bgee.org/sparql/",
+                // "https://sparql.omabrowser.org/sparql/",
+                // "https://beta.sparql.swisslipids.org/sparql/",
                 document.getElementById("sparql-editor"),
                 document.getElementById("sparql-results"),
-                document.getElementById("add-prefixes")
+                document.getElementById("add-prefixes"),
+                document.getElementById("sparql-examples"),
             );
         </script>
 
@@ -37,6 +55,32 @@
             }
             .yasr .dataTable {
                 font-size: 0.9em;
+            }
+            a {
+                text-decoration: none;
+            }
+
+            /* Similar color scheme as YASGUI */
+            .hljs-variable {
+                color: #219;
+            }
+            .hljs-symbol {
+                color: #f50;
+            }
+            .hljs-function {
+                color: #708;
+            }
+            .hljs-keyword {
+                color: #708;
+            }
+            .hljs-literal {
+                color: #a11;
+            }
+            .hljs-builtin {
+                color: #000;
+            }
+            .hljs-expanded-iri {
+                color: #085;
             }
         </style>
     </body>
